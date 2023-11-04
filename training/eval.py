@@ -10,7 +10,7 @@ import tqdm
 from datasets import DATASETS, SplitType, get_dataset
 from matplotlib import pyplot as plt
 from sklearn import metrics
-from torch.autograd import Variable
+from torch_utils import build_model, to_device, to_var
 
 
 class Predict(object):
@@ -20,8 +20,11 @@ class Predict(object):
         self.data_path = config.data_path
         self.dataset_name = config.dataset
         self.batch_size = config.batch_size
-        self.is_cuda = torch.cuda.is_available()
-        self.build_model()
+
+        # build model
+        self.model, self.input_length = build_model(
+            self.model_type, self.dataset_name, self.model_load_path
+        )
 
         self.dataset = get_dataset(
             config.dataset,
@@ -30,29 +33,6 @@ class Predict(object):
             config.batch_size,
             SplitType.TEST,
         )
-
-    def build_model(self):
-        self.model, self.input_length = Model.get_model(
-            self.model_type, self.dataset_name
-        )
-
-        # load model
-        self.load(self.model_load_path)
-
-        # cuda
-        if self.is_cuda:
-            self.model.cuda()
-
-    def load(self, filename):
-        S = torch.load(filename)
-        if "spec.mel_scale.fb" in S.keys():
-            self.model.spec.mel_scale.fb = S["spec.mel_scale.fb"]
-        self.model.load_state_dict(S)
-
-    def to_var(self, x):
-        if torch.cuda.is_available():
-            x = x.cuda()
-        return Variable(x)
 
     def test(self):
         est_array, gt_array, loss = self.get_test_score()
@@ -136,10 +116,12 @@ class Predict(object):
             ground_truth = self.dataset.get_ground_truth(data)
 
             # forward
-            x = self.to_var(x)
-            y = torch.tensor(
-                np.tile(ground_truth.astype("float32"), (self.batch_size, 1))
-            ).cuda()
+            x = to_var(x)
+            y = to_device(
+                torch.tensor(
+                    np.tile(ground_truth.astype("float32"), (self.batch_size, 1))
+                )
+            )
             out = self.model(x)
             loss = reconst_loss(out, y)
             losses.append(float(loss.data))

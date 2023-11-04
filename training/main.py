@@ -56,6 +56,8 @@ if __name__ == "__main__":
         )
         model_load_dir.mkdir(parents=True, exist_ok=True)
         config.model_load_path = model_load_dir / "best_model.pth"
+    else:
+        config.model_load_path = None
 
     model_save_dir: Path = (
         Path(config.model_save_path) / config.dataset / config.model_type

@@ -2,16 +2,15 @@
 import datetime
 import time
 
-import model as Model
 import numpy as np
 import torch
 import torch.nn as nn
 import tqdm
 from datasets import SplitType, get_dataset
 from sklearn import metrics
-from torch.autograd import Variable
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
+from torch_utils import build_model, to_device, to_var
 
 
 class Solver(object):
@@ -33,10 +32,15 @@ class Solver(object):
         self.batch_size = config.batch_size
         self.model_type = config.model_type
 
-        # cuda
-        self.is_cuda = torch.cuda.is_available()
-        # Build model
-        self.build_model()
+        # build model
+        self.model, self.input_length = build_model(
+            self.model_type, self.dataset_name, self.model_load_path
+        )
+
+        # optimizers
+        self.optimizer = torch.optim.Adam(
+            self.model.parameters(), self.lr, weight_decay=1e-4
+        )
 
         # Tensorboard
         self.writer = SummaryWriter()
@@ -62,39 +66,6 @@ class Solver(object):
             num_workers=config.num_workers,
         )
 
-    def build_model(self):
-        # model
-        self.model, self.input_length = Model.get_model(
-            self.model_type, self.dataset_name
-        )
-
-        # cuda
-        if self.is_cuda:
-            self.model.cuda()
-
-        # load pretrained model
-        if self.load_model != 0:
-            if self.model_load_path.exists():
-                self.load(self.model_load_path)
-            else:
-                print(f"Could not load model from '{self.model_load_path}'")
-
-        # optimizers
-        self.optimizer = torch.optim.Adam(
-            self.model.parameters(), self.lr, weight_decay=1e-4
-        )
-
-    def load(self, filename):
-        S = torch.load(filename)
-        if "spec.mel_scale.fb" in S.keys():
-            self.model.spec.mel_scale.fb = S["spec.mel_scale.fb"]
-        self.model.load_state_dict(S)
-
-    def to_var(self, x):
-        if torch.cuda.is_available():
-            x = x.cuda()
-        return Variable(x)
-
     def get_loss_function(self):
         return nn.BCELoss()
 
@@ -114,8 +85,8 @@ class Solver(object):
             for x, y in self.data_loader:
                 ctr += 1
                 # Forward
-                x = self.to_var(x)
-                y = self.to_var(y)
+                x = to_var(x)
+                y = to_var(y)
                 out = self.model(x)
 
                 # Backward
@@ -228,12 +199,12 @@ class Solver(object):
             ground_truth = self.dataset.get_ground_truth(data)
 
             # forward
-            x = self.to_var(x)
-            y = torch.tensor(
-                np.tile(ground_truth.astype("float32"), (self.batch_size, 1))
+            x = to_var(x)
+            y = to_device(
+                torch.tensor(
+                    np.tile(ground_truth.astype("float32"), (self.batch_size, 1))
                 )
-            if torch.cuda.is_available():
-                y = y.cuda()
+            )
             out = self.model(x)
             loss = reconst_loss(out, y)
             losses.append(float(loss.data))
