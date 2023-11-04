@@ -40,6 +40,7 @@ class Processor:
         npy_dir = out_dir
         if npy_dir is None:
             npy_dir = data_dir / ("npy" if not split else "npy_split")
+        npy_dir = Path(npy_dir)
         npy_dir.mkdir(parents=True, exist_ok=True)
 
         # convert files to npy
