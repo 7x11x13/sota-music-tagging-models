@@ -313,3 +313,26 @@ class HarmonicSTFT(nn.Module):
         # amplitude to db
         harmonic_spec = self.amplitude_to_db(harmonic_spec)
         return harmonic_spec
+
+
+class MelSpecBatchNorm(nn.Module):
+    def __init__(self, sample_rate, n_fft, f_min, f_max, n_mels, n_stems):
+        super(MelSpecBatchNorm, self).__init__()
+        self.spec = torchaudio.transforms.MelSpectrogram(
+            sample_rate=sample_rate,
+            n_fft=n_fft,
+            f_min=f_min,
+            f_max=f_max,
+            n_mels=n_mels,
+        )
+        self.db = torchaudio.transforms.AmplitudeToDB()
+        self.bn = nn.BatchNorm2d(n_stems)
+        self.n_stems = n_stems
+
+    def forward(self, x):
+        x = self.spec(x)
+        x = self.db(x)
+        if self.n_stems == 1:
+            x = x.unsqueeze(1)
+        x = self.bn(x)
+        return x

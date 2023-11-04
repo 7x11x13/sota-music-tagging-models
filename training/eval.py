@@ -23,7 +23,7 @@ class Predict(object):
 
         # build model
         self.model, self.input_length = build_model(
-            self.model_type, self.dataset_name, self.model_load_path
+            self.model_type, self.dataset_name, config.n_stems, self.model_load_path
         )
 
         self.dataset = get_dataset(
@@ -166,6 +166,7 @@ if __name__ == "__main__":
             "hcnn",
         ],
     )
+    parser.add_argument("--n_stems", type=int, default=1)
     parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--model_load_path", type=str, default="./models")
     parser.add_argument("--data_path", type=str, default="./data")
@@ -177,7 +178,10 @@ if __name__ == "__main__":
     )
     model_load_dir.mkdir(parents=True, exist_ok=True)
 
-    config.model_load_path = model_load_dir / "best_model.pth"
+    config.model_load_path = (
+        model_load_dir
+        / f"best_model{'' if config.n_stems == 1 else f'_{config.n_stems}_stems'}.pth"
+    )
 
     p = Predict(config)
     p.test()

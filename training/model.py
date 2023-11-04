@@ -4,8 +4,8 @@ import torch
 import torch.nn as nn
 import torchaudio
 from attention_modules import BertConfig, BertEncoder, BertPooler
-from modules import (Conv_1d, Conv_2d, Conv_H, Conv_V, HarmonicSTFT, Res_2d,
-                     Res_2d_mp, ResSE_1d)
+from modules import (Conv_1d, Conv_2d, Conv_H, Conv_V, HarmonicSTFT,
+                     MelSpecBatchNorm, Res_2d, Res_2d_mp, ResSE_1d)
 
 
 class FCN(nn.Module):
@@ -23,22 +23,22 @@ class FCN(nn.Module):
         f_max=8000.0,
         n_mels=96,
         n_class=50,
+        n_stems=1,
     ):
         super(FCN, self).__init__()
 
         # Spectrogram
-        self.spec = torchaudio.transforms.MelSpectrogram(
+        self.spec = MelSpecBatchNorm(
             sample_rate=sample_rate,
             n_fft=n_fft,
             f_min=f_min,
             f_max=f_max,
             n_mels=n_mels,
+            n_stems=n_stems,
         )
-        self.to_db = torchaudio.transforms.AmplitudeToDB()
-        self.spec_bn = nn.BatchNorm2d(1)
 
         # FCN
-        self.layer1 = Conv_2d(1, 64, pooling=(2, 4))
+        self.layer1 = Conv_2d(n_stems, 64, pooling=(2, 4))
         self.layer2 = Conv_2d(64, 128, pooling=(2, 4))
         self.layer3 = Conv_2d(128, 128, pooling=(2, 4))
         self.layer4 = Conv_2d(128, 128, pooling=(3, 5))
@@ -51,9 +51,6 @@ class FCN(nn.Module):
     def forward(self, x):
         # Spectrogram
         x = self.spec(x)
-        x = self.to_db(x)
-        x = x.unsqueeze(1)
-        x = self.spec_bn(x)
 
         # FCN
         x = self.layer1(x)
@@ -88,22 +85,22 @@ class Musicnn(nn.Module):
         n_mels=96,
         n_class=50,
         dataset="mtat",
+        n_stems=1,
     ):
         super(Musicnn, self).__init__()
 
         # Spectrogram
-        self.spec = torchaudio.transforms.MelSpectrogram(
+        self.spec = MelSpecBatchNorm(
             sample_rate=sample_rate,
             n_fft=n_fft,
             f_min=f_min,
             f_max=f_max,
             n_mels=n_mels,
+            n_stems=n_stems,
         )
-        self.to_db = torchaudio.transforms.AmplitudeToDB()
-        self.spec_bn = nn.BatchNorm2d(1)
 
         # Pons front-end
-        m1 = Conv_V(1, 204, (int(0.7 * 96), 7))
+        m1 = Conv_V(n_stems, 204, (int(0.7 * 96), 7))
         m2 = Conv_V(1, 204, (int(0.4 * 96), 7))
         m3 = Conv_H(1, 51, 129)
         m4 = Conv_H(1, 51, 65)
@@ -127,9 +124,6 @@ class Musicnn(nn.Module):
     def forward(self, x):
         # Spectrogram
         x = self.spec(x)
-        x = self.to_db(x)
-        x = x.unsqueeze(1)
-        x = self.spec_bn(x)
 
         # Pons front-end
         out = []
@@ -173,22 +167,22 @@ class CRNN(nn.Module):
         f_max=8000.0,
         n_mels=96,
         n_class=50,
+        n_stems=1,
     ):
         super(CRNN, self).__init__()
 
         # Spectrogram
-        self.spec = torchaudio.transforms.MelSpectrogram(
+        self.spec = MelSpecBatchNorm(
             sample_rate=sample_rate,
             n_fft=n_fft,
             f_min=f_min,
             f_max=f_max,
             n_mels=n_mels,
+            n_stems=n_stems,
         )
-        self.to_db = torchaudio.transforms.AmplitudeToDB()
-        self.spec_bn = nn.BatchNorm2d(1)
 
         # CNN
-        self.layer1 = Conv_2d(1, 64, pooling=(2, 2))
+        self.layer1 = Conv_2d(n_stems, 64, pooling=(2, 2))
         self.layer2 = Conv_2d(64, 128, pooling=(3, 3))
         self.layer3 = Conv_2d(128, 128, pooling=(4, 4))
         self.layer4 = Conv_2d(128, 128, pooling=(4, 4))
@@ -203,9 +197,6 @@ class CRNN(nn.Module):
     def forward(self, x):
         # Spectrogram
         x = self.spec(x)
-        x = self.to_db(x)
-        x = x.unsqueeze(1)
-        x = self.spec_bn(x)
 
         # CCN
         x = self.layer1(x)
@@ -234,9 +225,17 @@ class SampleCNN(nn.Module):
     Sample-level CNN.
     """
 
-    def __init__(self, n_class=50):
+    def __init__(
+        self,
+        n_class=50,
+        n_stems=1,
+    ):
         super(SampleCNN, self).__init__()
-        self.layer1 = Conv_1d(1, 128, shape=3, stride=3, pooling=1)
+
+        if n_stems != 1:
+            raise NotImplementedError("Only single stem input is supported")
+
+        self.layer1 = Conv_1d(n_stems, 128, shape=3, stride=3, pooling=1)
         self.layer2 = Conv_1d(128, 128, shape=3, stride=1, pooling=3)
         self.layer3 = Conv_1d(128, 128, shape=3, stride=1, pooling=3)
         self.layer4 = Conv_1d(128, 256, shape=3, stride=1, pooling=3)
@@ -277,9 +276,17 @@ class SampleCNNSE(nn.Module):
     Sample-level CNN + residual connections + squeeze & excitation.
     """
 
-    def __init__(self, n_class=50):
+    def __init__(
+        self,
+        n_class=50,
+        n_stems=1,
+    ):
         super(SampleCNNSE, self).__init__()
-        self.layer1 = ResSE_1d(1, 128, shape=3, stride=3, pooling=1)
+
+        if n_stems != 1:
+            raise NotImplementedError("Only single stem input is supported")
+
+        self.layer1 = ResSE_1d(n_stems, 128, shape=3, stride=3, pooling=1)
         self.layer2 = ResSE_1d(128, 128, shape=3, stride=1, pooling=3)
         self.layer3 = ResSE_1d(128, 128, shape=3, stride=1, pooling=3)
         self.layer4 = ResSE_1d(128, 256, shape=3, stride=1, pooling=3)
@@ -332,22 +339,22 @@ class ShortChunkCNN(nn.Module):
         f_max=8000.0,
         n_mels=128,
         n_class=50,
+        n_stems=1,
     ):
         super(ShortChunkCNN, self).__init__()
 
         # Spectrogram
-        self.spec = torchaudio.transforms.MelSpectrogram(
+        self.spec = MelSpecBatchNorm(
             sample_rate=sample_rate,
             n_fft=n_fft,
             f_min=f_min,
             f_max=f_max,
             n_mels=n_mels,
+            n_stems=n_stems,
         )
-        self.to_db = torchaudio.transforms.AmplitudeToDB()
-        self.spec_bn = nn.BatchNorm2d(1)
 
         # CNN
-        self.layer1 = Conv_2d(1, n_channels, pooling=2)
+        self.layer1 = Conv_2d(n_stems, n_channels, pooling=2)
         self.layer2 = Conv_2d(n_channels, n_channels, pooling=2)
         self.layer3 = Conv_2d(n_channels, n_channels * 2, pooling=2)
         self.layer4 = Conv_2d(n_channels * 2, n_channels * 2, pooling=2)
@@ -365,9 +372,6 @@ class ShortChunkCNN(nn.Module):
     def forward(self, x):
         # Spectrogram
         x = self.spec(x)
-        x = self.to_db(x)
-        x = x.unsqueeze(1)
-        x = self.spec_bn(x)
 
         # CNN
         x = self.layer1(x)
@@ -409,22 +413,22 @@ class ShortChunkCNN_Res(nn.Module):
         f_max=8000.0,
         n_mels=128,
         n_class=50,
+        n_stems=1,
     ):
         super(ShortChunkCNN_Res, self).__init__()
 
         # Spectrogram
-        self.spec = torchaudio.transforms.MelSpectrogram(
+        self.spec = MelSpecBatchNorm(
             sample_rate=sample_rate,
             n_fft=n_fft,
             f_min=f_min,
             f_max=f_max,
             n_mels=n_mels,
+            n_stems=n_stems,
         )
-        self.to_db = torchaudio.transforms.AmplitudeToDB()
-        self.spec_bn = nn.BatchNorm2d(1)
 
         # CNN
-        self.layer1 = Res_2d(1, n_channels, stride=2)
+        self.layer1 = Res_2d(n_stems, n_channels, stride=2)
         self.layer2 = Res_2d(n_channels, n_channels, stride=2)
         self.layer3 = Res_2d(n_channels, n_channels * 2, stride=2)
         self.layer4 = Res_2d(n_channels * 2, n_channels * 2, stride=2)
@@ -442,9 +446,6 @@ class ShortChunkCNN_Res(nn.Module):
     def forward(self, x):
         # Spectrogram
         x = self.spec(x)
-        x = self.to_db(x)
-        x = x.unsqueeze(1)
-        x = self.spec_bn(x)
 
         # CNN
         x = self.layer1(x)
@@ -488,22 +489,22 @@ class CNNSA(nn.Module):
         f_max=8000.0,
         n_mels=128,
         n_class=50,
+        n_stems=1,
     ):
         super(CNNSA, self).__init__()
 
         # Spectrogram
-        self.spec = torchaudio.transforms.MelSpectrogram(
+        self.spec = MelSpecBatchNorm(
             sample_rate=sample_rate,
             n_fft=n_fft,
             f_min=f_min,
             f_max=f_max,
             n_mels=n_mels,
+            n_stems=n_stems,
         )
-        self.to_db = torchaudio.transforms.AmplitudeToDB()
-        self.spec_bn = nn.BatchNorm2d(1)
 
         # CNN
-        self.layer1 = Res_2d(1, n_channels, stride=2)
+        self.layer1 = Res_2d(n_stems, n_channels, stride=2)
         self.layer2 = Res_2d(n_channels, n_channels, stride=2)
         self.layer3 = Res_2d(n_channels, n_channels * 2, stride=2)
         self.layer4 = Res_2d(n_channels * 2, n_channels * 2, stride=(2, 1))
@@ -547,9 +548,6 @@ class CNNSA(nn.Module):
     def forward(self, x):
         # Spectrogram
         x = self.spec(x)
-        x = self.to_db(x)
-        x = x.unsqueeze(1)
-        x = self.spec_bn(x)
 
         # CNN
         x = self.layer1(x)
@@ -594,11 +592,15 @@ class HarmonicCNN(nn.Module):
         f_max=8000.0,
         n_mels=128,
         n_class=50,
+        n_stems=1,
         n_harmonic=6,
         semitone_scale=2,
         learn_bw="only_Q",
     ):
         super(HarmonicCNN, self).__init__()
+
+        if n_stems != 1:
+            raise NotImplementedError("Only single stem input is supported")
 
         # Harmonic STFT
         self.hstft = HarmonicSTFT(
@@ -611,7 +613,7 @@ class HarmonicCNN(nn.Module):
         self.hstft_bn = nn.BatchNorm2d(n_harmonic)
 
         # CNN
-        self.layer1 = Conv_2d(n_harmonic, n_channels, pooling=2)
+        self.layer1 = Conv_2d(n_harmonic * n_stems, n_channels, pooling=2)
         self.layer2 = Res_2d_mp(n_channels, n_channels, pooling=2)
         self.layer3 = Res_2d_mp(n_channels, n_channels, pooling=2)
         self.layer4 = Res_2d_mp(n_channels, n_channels, pooling=2)
@@ -656,35 +658,35 @@ class HarmonicCNN(nn.Module):
         return x
 
 
-def get_model(name: str, dataset: str) -> tuple[nn.Module, int]:
+def get_model(name: str, dataset: str, n_stems: int) -> tuple[nn.Module, int]:
     n_class = 50 if dataset != "gtzan" else 10
     match name:
         case "fcn":
-            model = FCN(n_class=n_class)
+            model = FCN(n_class=n_class, n_stems=n_stems)
             input_length = 29 * 16000
         case "musicnn":
-            model = Musicnn(dataset=dataset, n_class=n_class)
+            model = Musicnn(dataset=dataset, n_class=n_class, n_stems=n_stems)
             input_length = 3 * 16000
         case "crnn":
-            model = CRNN(n_class=n_class)
+            model = CRNN(n_class=n_class, n_stems=n_stems)
             input_length = 29 * 16000
         case "sample":
-            model = SampleCNN(n_class=n_class)
+            model = SampleCNN(n_class=n_class, n_stems=n_stems)
             input_length = 59049
         case "se":
-            model = SampleCNNSE(n_class=n_class)
+            model = SampleCNNSE(n_class=n_class, n_stems=n_stems)
             input_length = 59049
         case "short":
-            model = ShortChunkCNN(n_class=n_class)
+            model = ShortChunkCNN(n_class=n_class, n_stems=n_stems)
             input_length = 59049
         case "short_res":
-            model = ShortChunkCNN_Res(n_class=n_class)
+            model = ShortChunkCNN_Res(n_class=n_class, n_stems=n_stems)
             input_length = 59049
         case "attention":
-            model = CNNSA(n_class=n_class)
+            model = CNNSA(n_class=n_class, n_stems=n_stems)
             input_length = 15 * 16000
         case "hcnn":
-            model = HarmonicCNN(n_class=n_class)
+            model = HarmonicCNN(n_class=n_class, n_stems=n_stems)
             input_length = 80000
 
     return model, input_length

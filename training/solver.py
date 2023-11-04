@@ -34,7 +34,7 @@ class Solver(object):
 
         # build model
         self.model, self.input_length = build_model(
-            self.model_type, self.dataset_name, self.model_load_path
+            self.model_type, self.dataset_name, config.n_stems, self.model_load_path
         )
 
         # optimizers

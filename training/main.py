@@ -38,6 +38,7 @@ if __name__ == "__main__":
             "hcnn",
         ],
     )
+    parser.add_argument("--n_stems", type=int, default=1)
     parser.add_argument("--n_epochs", type=int, default=200)
     parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--lr", type=float, default=1e-4)
@@ -55,7 +56,10 @@ if __name__ == "__main__":
             Path(config.model_load_path) / config.dataset / config.model_type
         )
         model_load_dir.mkdir(parents=True, exist_ok=True)
-        config.model_load_path = model_load_dir / "best_model.pth"
+        config.model_load_path = (
+            model_load_dir
+            / f"best_model{'' if config.n_stems == 1 else f'_{config.n_stems}_stems'}.pth"
+        )
     else:
         config.model_load_path = None
 
@@ -63,7 +67,10 @@ if __name__ == "__main__":
         Path(config.model_save_path) / config.dataset / config.model_type
     )
     model_save_dir.mkdir(parents=True, exist_ok=True)
-    config.model_save_path = model_save_dir / "best_model.pth"
+    config.model_save_path = (
+        model_save_dir
+        / f"best_model{'' if config.n_stems == 1 else f'_{config.n_stems}_stems'}.pth"
+    )
 
     print(config)
     main(config)

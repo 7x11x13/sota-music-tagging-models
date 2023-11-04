@@ -43,19 +43,24 @@ class Dataset(ABC, TorchDataset):
     def get_tensor(self, data) -> Tensor:
         npy_path = self.get_npy_path(data)
         raw = np.load(npy_path, mmap_mode="r+")
-        # split chunk
-        length = len(raw)
+        length = raw.shape[-1]
         hop = (length - self.input_length) // self.batch_size
-        x = torch.zeros(self.batch_size, self.input_length)
+        batch_shape = [self.batch_size] + list(raw.shape)
+        batch_shape[-1] = self.input_length
+        x = torch.zeros(batch_shape)
         for i in range(self.batch_size):
-            x[i] = torch.Tensor(raw[i * hop : i * hop + self.input_length]).unsqueeze(0)
+            t = torch.Tensor(raw[..., i * hop : i * hop + self.input_length])
+            if len(batch_shape) == 2:
+                t = t.unsqueeze(0)  # convert 1d input to 2d
+            x[i] = t
         return x
 
     def get_npy(self, index) -> tuple[np.ndarray, np.ndarray]:
         npy_path = self.get_npy_path(self.data_list[index])
         npy = np.load(npy_path, mmap_mode="r")
-        random_idx = int(np.floor(np.random.random(1) * (len(npy) - self.input_length)))
-        npy = np.array(npy[random_idx : random_idx + self.input_length])
+        length = npy.shape[-1]
+        random_idx = int(np.floor(np.random.random(1) * (length - self.input_length)))
+        npy = np.array(npy[..., random_idx : random_idx + self.input_length])
         tag_binary = self.get_ground_truth(self.data_list[index])
         return npy, tag_binary
 

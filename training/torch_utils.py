@@ -8,9 +8,9 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def build_model(
-    model_name: str, dataset_name: str, model_load_path: Path | None
+    model_name: str, dataset_name: str, n_stems: int, model_load_path: Path | None
 ) -> tuple[torch.nn.Module, int]:
-    model, input_length = Model.get_model(model_name, dataset_name)
+    model, input_length = Model.get_model(model_name, dataset_name, n_stems)
 
     # load pretrained model
     if model_load_path is not None:
