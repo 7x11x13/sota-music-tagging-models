@@ -291,7 +291,7 @@ class GTZANDataset(Dataset):
                     self.data_list.append(path)
 
     def get_npy_path(self, data: str) -> Path:
-        return (Path(self.data_path) / "npy/genres" / data).with_suffix(".npy")
+        return (Path(self.data_path) / "genres" / data).with_suffix(".npy")
 
     def get_ground_truth(self, data: str) -> np.ndarray:
         genres = np.zeros(10)

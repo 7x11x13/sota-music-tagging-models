@@ -231,7 +231,9 @@ class Solver(object):
             x = self.to_var(x)
             y = torch.tensor(
                 np.tile(ground_truth.astype("float32"), (self.batch_size, 1))
-            ).cuda()
+                )
+            if torch.cuda.is_available():
+                y = y.cuda()
             out = self.model(x)
             loss = reconst_loss(out, y)
             losses.append(float(loss.data))
