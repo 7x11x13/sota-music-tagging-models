@@ -20,6 +20,7 @@ torch = {index="downloadpytorch", version="==2.1.0+cu121"}
 torchaudio = {index="downloadpytorch", version="==2.1.0+cu121"}
 tqdm = "*"
 matplotlib = "*"
+demucs = {git = "git+https://github.com/facebookresearch/demucs#egg=demucs"}
 
 [dev-packages]
 
