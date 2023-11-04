@@ -19,6 +19,7 @@ tensorboard = "*"
 torch = {index="downloadpytorch", version="==2.1.0+cu121"}
 torchaudio = {index="downloadpytorch", version="==2.1.0+cu121"}
 tqdm = "*"
+matplotlib = "*"
 
 [dev-packages]
 
