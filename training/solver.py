@@ -10,7 +10,7 @@ from datasets import SplitType, get_dataset
 from sklearn import metrics
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from torch_utils import build_model, to_device, to_var
+from torch_utils import build_model, load_model, to_device, to_var
 
 
 class Solver(object):
@@ -118,7 +118,7 @@ class Solver(object):
     def opt_schedule(self, current_optimizer, drop_counter):
         # adam to sgd
         if current_optimizer == "adam" and drop_counter == 80:
-            self.load(self.model_save_path)
+            load_model(self.model, self.model_save_path)
             self.optimizer = torch.optim.SGD(
                 self.model.parameters(),
                 0.001,
@@ -131,7 +131,7 @@ class Solver(object):
             print("sgd 1e-3")
         # first drop
         if current_optimizer == "sgd_1" and drop_counter == 20:
-            self.load(self.model_save_path)
+            load_model(self.model, self.model_save_path)
             for pg in self.optimizer.param_groups:
                 pg["lr"] = 0.0001
             current_optimizer = "sgd_2"
@@ -139,7 +139,7 @@ class Solver(object):
             print("sgd 1e-4")
         # second drop
         if current_optimizer == "sgd_2" and drop_counter == 20:
-            self.load(self.model_save_path)
+            load_model(self.model, self.model_save_path)
             for pg in self.optimizer.param_groups:
                 pg["lr"] = 0.00001
             current_optimizer = "sgd_3"
