@@ -42,6 +42,7 @@ if __name__ == "__main__":
     parser.add_argument("--n_epochs", type=int, default=200)
     parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--lr", type=float, default=1e-4)
+    parser.add_argument("--weight_decay", type=float, default=1e-4)
     parser.add_argument("--use_tensorboard", type=int, default=1)
     parser.add_argument("--model_save_path", type=str, default="./models")
     parser.add_argument("--model_load_path", type=str, default="./models")

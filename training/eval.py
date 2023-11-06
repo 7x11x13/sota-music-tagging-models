@@ -20,6 +20,7 @@ class Predict(object):
         self.data_path = config.data_path
         self.dataset_name = config.dataset
         self.batch_size = config.batch_size
+        self.n_stems = config.n_stems
 
         # build model
         self.model, self.input_length = build_model(
@@ -90,6 +91,9 @@ class Predict(object):
         plt.xlabel("False Positive Rate")
         plt.ylabel("True Positive Rate")
         plt.legend()
+        plt.title(
+            f"ROC curve for model_type={self.model_type} and n_stems={self.n_stems}"
+        )
 
         plt.figure(2)
         plt.plot(
@@ -100,6 +104,9 @@ class Predict(object):
         plt.xlabel("Recall")
         plt.ylabel("Precision")
         plt.legend()
+        plt.title(
+            f"PR curve for model_type={self.model_type} and n_stems={self.n_stems}"
+        )
         plt.show()
 
     def get_test_score(self):

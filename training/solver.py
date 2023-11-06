@@ -39,7 +39,7 @@ class Solver(object):
 
         # optimizers
         self.optimizer = torch.optim.Adam(
-            self.model.parameters(), self.lr, weight_decay=1e-4
+            self.model.parameters(), self.lr, weight_decay=config.weight_decay
         )
 
         # Tensorboard
