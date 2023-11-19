@@ -168,6 +168,7 @@ if __name__ == "__main__":
             "sample",
             "se",
             "short",
+            "short_multi",
             "short_res",
             "attention",
             "hcnn",
