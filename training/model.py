@@ -3,8 +3,17 @@ import numpy as np
 import torch
 import torch.nn as nn
 from attention_modules import BertConfig, BertEncoder, BertPooler
-from modules import (Conv_1d, Conv_2d, Conv_H, Conv_V, HarmonicSTFT,
-                     MelSpecBatchNorm, Res_2d, Res_2d_mp, ResSE_1d)
+from modules import (
+    Conv_1d,
+    Conv_2d,
+    Conv_H,
+    Conv_V,
+    HarmonicSTFT,
+    MelSpecBatchNorm,
+    Res_2d,
+    Res_2d_mp,
+    ResSE_1d,
+)
 
 
 class FCN(nn.Module):
@@ -655,8 +664,8 @@ class HarmonicCNN(nn.Module):
         x = nn.Sigmoid()(x)
 
         return x
-    
-    
+
+
 class ShortChunkCNNMultiStem(nn.Module):
     """
     Short-chunk CNN architecture, but
@@ -699,7 +708,7 @@ class ShortChunkCNNMultiStem(nn.Module):
             self.layer1.append(Conv_2d(1, n_channels, pooling=2))
             self.layer2.append(Conv_2d(n_channels, n_channels, pooling=2))
             self.layer3.append(Conv_2d(n_channels, n_channels * 2, pooling=2))
-            self.layer4.append( Conv_2d(n_channels * 2, n_channels * 2, pooling=2))
+            self.layer4.append(Conv_2d(n_channels * 2, n_channels * 2, pooling=2))
             self.layer5.append(Conv_2d(n_channels * 2, n_channels * 2, pooling=2))
             self.layer6.append(Conv_2d(n_channels * 2, n_channels * 2, pooling=2))
             self.layer7.append(Conv_2d(n_channels * 2, n_channels * 4, pooling=2))
@@ -740,7 +749,7 @@ class ShortChunkCNNMultiStem(nn.Module):
 
         x = torch.cat(stem_features, 1)
         # x is (N, n_stems * C)
-        
+
         # Dense
         x = self.dense1(x)
         x = self.bn(x)
@@ -750,6 +759,101 @@ class ShortChunkCNNMultiStem(nn.Module):
         x = nn.Sigmoid()(x)
 
         return x
+
+
+class ShortChunkCNNMultiStem_Res(nn.Module):
+    """
+    Short-chunk CNN architecture with residual connections.
+    """
+
+    def __init__(
+        self,
+        n_channels=128,
+        sample_rate=16000,
+        n_fft=512,
+        f_min=0.0,
+        f_max=8000.0,
+        n_mels=128,
+        n_class=50,
+        n_stems=1,
+    ):
+        super(ShortChunkCNNMultiStem_Res, self).__init__()
+
+        # Spectrogram
+        self.spec = MelSpecBatchNorm(
+            sample_rate=sample_rate,
+            n_fft=n_fft,
+            f_min=f_min,
+            f_max=f_max,
+            n_mels=n_mels,
+            n_stems=n_stems,
+        )
+
+        self.n_stems = n_stems
+        # CNN
+        self.layer1 = nn.ModuleList()
+        self.layer2 = nn.ModuleList()
+        self.layer3 = nn.ModuleList()
+        self.layer4 = nn.ModuleList()
+        self.layer5 = nn.ModuleList()
+        self.layer6 = nn.ModuleList()
+        self.layer7 = nn.ModuleList()
+        for stem in range(n_stems):
+            self.layer1.append(Res_2d(1, n_channels, stride=2))
+            self.layer2.append(Res_2d(n_channels, n_channels, stride=2))
+            self.layer3.append(Res_2d(n_channels, n_channels * 2, stride=2))
+            self.layer4.append(Res_2d(n_channels * 2, n_channels * 2, stride=2))
+            self.layer5.append(Res_2d(n_channels * 2, n_channels * 2, stride=2))
+            self.layer6.append(Res_2d(n_channels * 2, n_channels * 2, stride=2))
+            self.layer7.append(Res_2d(n_channels * 2, n_channels * 4, stride=2))
+
+        # Dense
+        self.dense1 = nn.Linear(n_channels * 4 * n_stems, n_channels * 4)
+        self.bn = nn.BatchNorm1d(n_channels * 4)
+        self.dense2 = nn.Linear(n_channels * 4, n_class)
+        self.dropout = nn.Dropout(0.5)
+        self.relu = nn.ReLU()
+
+    def forward(self, x):
+        # Spectrogram
+        x = self.spec(x)
+        # x is (N, stems, H, W)
+
+        stem_features = []
+        for stem in range(self.n_stems):
+            # CNN
+            x2 = x[:, stem, ...].unsqueeze(1)
+            x2 = self.layer1[stem](x2)
+            x2 = self.layer2[stem](x2)
+            x2 = self.layer3[stem](x2)
+            x2 = self.layer4[stem](x2)
+            x2 = self.layer5[stem](x2)
+            x2 = self.layer6[stem](x2)
+            x2 = self.layer7[stem](x2)
+            # x2 is (N, C, H, W)
+            x2 = x2.squeeze(2)
+            # x2 is (N, C, W)
+
+            # Global Max Pooling
+            if x2.size(-1) != 1:
+                x2 = nn.MaxPool1d(x2.size(-1))(x2)
+            x2 = x2.squeeze(2)
+            # x2 is (N, C)
+            stem_features.append(x2)
+
+        x = torch.cat(stem_features, 1)
+        # x is (N, n_stems * C)
+
+        # Dense
+        x = self.dense1(x)
+        x = self.bn(x)
+        x = self.relu(x)
+        x = self.dropout(x)
+        x = self.dense2(x)
+        x = nn.Sigmoid()(x)
+
+        return x
+
 
 def get_model(name: str, dataset: str, n_stems: int) -> tuple[nn.Module, int]:
     n_class = 50 if dataset != "gtzan" else 10
@@ -773,13 +877,27 @@ def get_model(name: str, dataset: str, n_stems: int) -> tuple[nn.Module, int]:
             model = ShortChunkCNN(n_class=n_class, n_stems=n_stems)
             input_length = 59049
         case "short_multi_64":
-            model = ShortChunkCNNMultiStem(n_class=n_class, n_stems=n_stems, n_channels=64)
+            model = ShortChunkCNNMultiStem(
+                n_class=n_class, n_stems=n_stems, n_channels=64
+            )
             input_length = 59049
         case "short_multi_32":
-            model = ShortChunkCNNMultiStem(n_class=n_class, n_stems=n_stems, n_channels=32)
+            model = ShortChunkCNNMultiStem(
+                n_class=n_class, n_stems=n_stems, n_channels=32
+            )
             input_length = 59049
         case "short_res":
             model = ShortChunkCNN_Res(n_class=n_class, n_stems=n_stems)
+            input_length = 59049
+        case "short_res_multi_64":
+            model = ShortChunkCNNMultiStem_Res(
+                n_class=n_class, n_stems=n_stems, n_channels=64
+            )
+            input_length = 59049
+        case "short_res_multi_32":
+            model = ShortChunkCNNMultiStem_Res(
+                n_class=n_class, n_stems=n_stems, n_channels=32
+            )
             input_length = 59049
         case "attention":
             model = CNNSA(n_class=n_class, n_stems=n_stems)
@@ -789,6 +907,7 @@ def get_model(name: str, dataset: str, n_stems: int) -> tuple[nn.Module, int]:
             input_length = 80000
 
     return model, input_length
+
 
 MODEL_NAMES = [
     "fcn",
@@ -800,6 +919,8 @@ MODEL_NAMES = [
     "short_multi_64",
     "short_multi_32",
     "short_res",
+    "short_res_multi_64",
+    "short_res_multi_32",
     "attention",
     "hcnn",
 ]
