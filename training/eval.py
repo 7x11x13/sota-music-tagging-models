@@ -161,18 +161,7 @@ if __name__ == "__main__":
         "--model_type",
         type=str,
         default="fcn",
-        choices=[
-            "fcn",
-            "musicnn",
-            "crnn",
-            "sample",
-            "se",
-            "short",
-            "short_multi",
-            "short_res",
-            "attention",
-            "hcnn",
-        ],
+        choices=Model.MODEL_NAMES,
     )
     parser.add_argument("--n_stems", type=int, default=1)
     parser.add_argument("--batch_size", type=int, default=16)

@@ -2,8 +2,6 @@
 import numpy as np
 import torch
 import torch.nn as nn
-import torchaudio
-from torch.profiler import profile, record_function, ProfilerActivity
 from attention_modules import BertConfig, BertEncoder, BertPooler
 from modules import (Conv_1d, Conv_2d, Conv_H, Conv_V, HarmonicSTFT,
                      MelSpecBatchNorm, Res_2d, Res_2d_mp, ResSE_1d)
@@ -753,7 +751,6 @@ class ShortChunkCNNMultiStem(nn.Module):
 
         return x
 
-
 def get_model(name: str, dataset: str, n_stems: int) -> tuple[nn.Module, int]:
     n_class = 50 if dataset != "gtzan" else 10
     match name:
@@ -775,8 +772,11 @@ def get_model(name: str, dataset: str, n_stems: int) -> tuple[nn.Module, int]:
         case "short":
             model = ShortChunkCNN(n_class=n_class, n_stems=n_stems)
             input_length = 59049
-        case "short_multi":
-            model = ShortChunkCNNMultiStem(n_class=n_class, n_stems=n_stems)
+        case "short_multi_64":
+            model = ShortChunkCNNMultiStem(n_class=n_class, n_stems=n_stems, n_channels=64)
+            input_length = 59049
+        case "short_multi_32":
+            model = ShortChunkCNNMultiStem(n_class=n_class, n_stems=n_stems, n_channels=32)
             input_length = 59049
         case "short_res":
             model = ShortChunkCNN_Res(n_class=n_class, n_stems=n_stems)
@@ -789,3 +789,17 @@ def get_model(name: str, dataset: str, n_stems: int) -> tuple[nn.Module, int]:
             input_length = 80000
 
     return model, input_length
+
+MODEL_NAMES = [
+    "fcn",
+    "musicnn",
+    "crnn",
+    "sample",
+    "se",
+    "short",
+    "short_multi_64",
+    "short_multi_32",
+    "short_res",
+    "attention",
+    "hcnn",
+]

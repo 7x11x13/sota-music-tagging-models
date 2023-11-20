@@ -2,6 +2,7 @@ import argparse
 from pathlib import Path
 
 from datasets import DATASETS
+from model import MODEL_NAMES
 from solver import Solver
 
 
@@ -26,18 +27,7 @@ if __name__ == "__main__":
         "--model_type",
         type=str,
         default="fcn",
-        choices=[
-            "fcn",
-            "musicnn",
-            "crnn",
-            "sample",
-            "se",
-            "short",
-            "short_multi",
-            "short_res",
-            "attention",
-            "hcnn",
-        ],
+        choices=MODEL_NAMES,
     )
     parser.add_argument("--n_stems", type=int, default=1)
     parser.add_argument("--n_epochs", type=int, default=200)
