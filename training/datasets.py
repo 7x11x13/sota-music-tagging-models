@@ -159,7 +159,7 @@ class MTGJamendoDataset(Dataset):
 
     def get_npy_path(self, data) -> Path:
         filename = self.file_dict[data]["path"]
-        return Path(self.data_path) / "npy" / filename
+        return Path(self.data_path) / filename
 
     def get_ground_truth(self, data) -> np.ndarray:
         return np.sum(self.mlb.transform(self.file_dict[data]["tags"]), axis=0)
@@ -179,7 +179,7 @@ class MTaTDataset(Dataset):
 
     def get_npy_path(self, data) -> Path:
         _, name = data.split("\t")
-        return Path(self.data_path) / "npy" / Path(name).with_suffix(".npy").name
+        return Path(self.data_path) / Path(name).with_suffix(".npy")
 
     def get_ground_truth(self, data) -> np.ndarray:
         ix, _ = data.split("\t")
@@ -270,7 +270,7 @@ class MSDDataset(Dataset):
 
     def get_npy_path(self, data) -> Path:
         filename = f"{data[2]}/{data[3]}/{data[4]}/{data}.npy"
-        return Path(self.data_path) / "npy" / filename
+        return Path(self.data_path) / filename
 
     def get_ground_truth(self, data) -> np.ndarray:
         return self.id2tag[data].flatten()

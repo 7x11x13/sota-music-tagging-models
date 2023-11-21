@@ -4,3 +4,4 @@ training/models/
 training/runs/
 .venv
 runs
+*log.txt
