@@ -107,6 +107,19 @@ class Predict(object):
         plt.title(
             f"PR curve for model_type={self.model_type} and n_stems={self.n_stems}"
         )
+
+        np.savetxt(
+            f"{self.dataset_name}_{self.model_type}_{self.n_stems}stem_ROC.csv",
+            np.stack((fpr["macro"], tpr["macro"])),
+            delimiter=",",
+        )
+
+        np.savetxt(
+            f"{self.dataset_name}_{self.model_type}_{self.n_stems}stem_PR.csv",
+            np.stack((recall["macro"], precision["macro"])),
+            delimiter=",",
+        )
+
         plt.show()
 
     def get_test_score(self):

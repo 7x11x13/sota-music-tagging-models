@@ -62,20 +62,28 @@ def train(model_name: str, dataset: str, data_path: str, n_stems: int):
 
 if __name__ == "__main__":
     models = [
-        "short",
-        "short_res",
         "short_multi_64",
         "short_multi_32",
-        "short_res_multi_64",
+        "short",
+        "short_res",
         "short_res_multi_32",
+        "short_res_multi_64",
     ]
-    with open("train_all_log.txt", "w") as f:
+    with open("train_all_log.txt", "a") as f:
         for model in models:
-            t = train(model, "mtat", "F:/datasets/mtat_npy/npy", 1)
-            f.write(f"{model} (mtat, 1): {t}\n")
-            t = train(model, "mtat", "F:/datasets/mtat_npy/npy_split", 4)
-            f.write(f"{model} (mtat, 4): {t}\n")
-            t = train(model, "gtzan", "E:/datasets/GTZAN/npy", 1)
-            f.write(f"{model} (gtzan, 1): {t}\n")
-            t = train(model, "gtzan", "E:/datasets/GTZAN/npy_split", 4)
-            f.write(f"{model} (gtzan, 4): {t}\n")
+            if "multi" in model:
+                stems = 4
+                npy_path = "npy_split"
+            else:
+                stems = 1
+                npy_path = "npy"
+            try:
+                t = train(model, "mtat", "D:/datasets/mtat_npy/" + npy_path, stems)
+                f.write(f"{model} (mtat, {stems}): {t}\n")
+            except Exception:
+                f.write(f"{model} (mtat, {stems}): ERROR\n")
+            try:
+                t = train(model, "gtzan", "D:/datasets/GTZAN/" + npy_path, stems)
+                f.write(f"{model} (gtzan, {stems}): {t}\n")
+            except Exception:
+                f.write(f"{model} (gtzan, {stems}): ERROR\n")

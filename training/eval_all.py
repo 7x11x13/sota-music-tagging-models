@@ -3,15 +3,8 @@ import time
 from pathlib import Path
 
 import model as Model
-import numpy as np
-import torch
-import torch.nn as nn
-import tqdm
-from datasets import DATASETS, SplitType, get_dataset
+from datasets import DATASETS
 from eval import Predict
-from matplotlib import pyplot as plt
-from sklearn import metrics
-from torch_utils import build_model, to_device, to_var
 
 
 def eval(model_name: str, dataset: str, data_path: str, n_stems: int):
@@ -61,20 +54,22 @@ def eval(model_name: str, dataset: str, data_path: str, n_stems: int):
 
 if __name__ == "__main__":
     models = [
-        "short",
-        "short_res",
         "short_multi_64",
         "short_multi_32",
-        "short_res_multi_64",
+        "short",
+        "short_res",
         "short_res_multi_32",
+        "short_res_multi_64",
     ]
     with open("eval_all_log.txt", "w") as f:
         for model in models:
-            t = eval(model, "mtat", "F:/datasets/mtat_npy/npy", 1)
-            f.write(f"{model} (mtat, 1): {t}\n")
-            t = eval(model, "mtat", "F:/datasets/mtat_npy/npy_split", 4)
-            f.write(f"{model} (mtat, 4): {t}\n")
-            t = eval(model, "gtzan", "E:/datasets/GTZAN/npy", 1)
-            f.write(f"{model} (gtzan, 1): {t}\n")
-            t = eval(model, "gtzan", "E:/datasets/GTZAN/npy_split", 4)
-            f.write(f"{model} (gtzan, 4): {t}\n")
+            if "multi" in model:
+                stems = 4
+                npy_path = "npy_split"
+            else:
+                stems = 1
+                npy_path = "npy"
+            t = eval(model, "mtat", "D:/datasets/mtat_npy/" + npy_path, stems)
+            f.write(f"{model} (mtat, {stems}): {t}\n")
+            t = eval(model, "gtzan", "D:/datasets/GTZAN/" + npy_path, stems)
+            f.write(f"{model} (gtzan, {stems}): {t}\n")

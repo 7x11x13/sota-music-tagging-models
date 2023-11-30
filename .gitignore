@@ -5,3 +5,4 @@ training/runs/
 .venv
 runs
 *log.txt
+*.csv
